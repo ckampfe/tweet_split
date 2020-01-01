@@ -10,35 +10,25 @@ use lazy_static::*;
 use regex::Regex;
 
 #[derive(Clone, Copy, Debug)]
-enum Span<'a> {
-    Word {
-        regex_match: regex::Match<'a>,
-        length: usize,
-    },
-    Space {
-        regex_match: regex::Match<'a>,
-        length: usize,
-    },
+struct Span<'a> {
+    regex_match: regex::Match<'a>,
+    length: usize,
 }
 
-trait Lengthable {
-    fn len(&self) -> usize;
-    fn start_end(&self) -> (usize, usize);
-}
-
-impl Lengthable for Span<'_> {
-    fn len(&self) -> usize {
-        match self {
-            Span::Word { length, .. } => *length,
-            Span::Space { length, .. } => *length,
+impl<'a> Span<'a> {
+    fn new(regex_match: regex::Match<'a>) -> Self {
+        Self {
+            regex_match,
+            length: regex_match.end() - regex_match.start(),
         }
     }
 
+    fn len(&self) -> usize {
+        self.length
+    }
+
     fn start_end(&self) -> (usize, usize) {
-        match self {
-            Span::Word { regex_match, .. } => (regex_match.start(), regex_match.end()),
-            Span::Space { regex_match, .. } => (regex_match.start(), regex_match.end()),
-        }
+        (self.regex_match.start(), self.regex_match.end())
     }
 }
 
@@ -47,19 +37,13 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
 
     let mut spaces = SPACE_MATCHER
         .find_iter(input)
-        .map(|space_match| Span::Space {
-            regex_match: space_match,
-            length: space_match.end() - space_match.start(),
-        })
+        .map(Span::new)
         .collect::<Vec<Span>>();
 
     if !spaces.is_empty() {
         let words = WORD_MATCHER
             .find_iter(input)
-            .map(|word_match| Span::Word {
-                regex_match: word_match,
-                length: word_match.end() - word_match.start(),
-            })
+            .map(Span::new)
             .collect::<Vec<Span>>();
 
         // if there are less spaces than words due to trimming,
