@@ -32,7 +32,28 @@ impl<'a> Span<'a> {
     }
 }
 
-pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
+#[derive(Clone, Debug)]
+pub enum TweetSplitError {
+    MaxTweetLengthTooShort { details: String },
+}
+
+impl std::fmt::Display for TweetSplitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            TweetSplitError::MaxTweetLengthTooShort { details } => write!(f, "{}", details),
+        }
+    }
+}
+
+impl std::error::Error for TweetSplitError {
+    fn description(&self) -> &str {
+        match self {
+            TweetSplitError::MaxTweetLengthTooShort { details } => details,
+        }
+    }
+}
+
+pub fn split_text(input: &str, max_tweet_length: usize) -> Result<Vec<String>, TweetSplitError> {
     let input = input.trim();
 
     let mut spaces = SPACE_MATCHER
@@ -78,7 +99,7 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
                     current_span_group.push(space);
                     current_tweet_length += space_length;
                 }
-            } else {
+            } else if word_length <= max_tweet_length {
                 current_tweet_length = 0;
                 span_groups.push(current_span_group);
                 current_span_group = vec![];
@@ -92,13 +113,20 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
                     current_span_group.push(space);
                     current_tweet_length += space_length;
                 }
+            } else {
+                return Err(TweetSplitError::MaxTweetLengthTooShort {
+                    details: format!(
+                        "Tweet length of {} is too short to split only on whitespace.",
+                        max_tweet_length
+                    ),
+                });
             }
         }
 
         // add the final span group
         span_groups.push(current_span_group);
 
-        span_groups
+        Ok(span_groups
             .iter()
             .map(|span_group| {
                 let tweet = span_group
@@ -112,14 +140,14 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
 
                 tweet.trim_end().to_string()
             })
-            .collect::<Vec<String>>()
+            .collect::<Vec<String>>())
     } else {
-        input
-            .chars()
-            .collect::<Vec<char>>()
-            .chunks(max_tweet_length)
-            .map(|chunk| chunk.iter().collect::<String>())
-            .collect::<Vec<_>>()
+        Err(TweetSplitError::MaxTweetLengthTooShort {
+            details: format!(
+                "Tweet length of {} is too short to split only on whitespace.",
+                max_tweet_length
+            ),
+        })
     }
 }
 
@@ -136,7 +164,7 @@ mod tests {
     fn it_splits() {
         let input = "aaaaaaaaa bbbbbbbbb ccccccccc ddddddddd eeeeeeeee ";
 
-        let splits = split_text(&input, 10);
+        let splits = split_text(&input, 10).unwrap();
 
         assert_eq!(splits.len(), 5);
     }
@@ -145,21 +173,10 @@ mod tests {
     fn it_trims_spaces_at_splits() {
         let input = "aaaaaaaaa bbbbbbbbb ccccccccc ddddddddd eeeeeeeee ";
 
-        let splits = split_text(&input, 10);
+        let splits = split_text(&input, 10).unwrap();
 
         for split in splits {
             assert_eq!(split.len(), 9);
-        }
-    }
-
-    #[test]
-    fn in_the_absence_of_spaces_it_splits_words() {
-        let input = "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee";
-
-        let splits = split_text(&input, 10);
-
-        for split in splits {
-            assert_eq!(split.len(), 10);
         }
     }
 }

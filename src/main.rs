@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         280
     };
 
-    let splits = tweet_split::split_text(&input, max_tweet_length);
+    let splits = tweet_split::split_text(&input, max_tweet_length)?;
     for split in splits {
         println!(
             "{}",
