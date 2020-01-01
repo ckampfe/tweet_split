@@ -38,7 +38,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let splits = tweet_split::split_text(&input, max_tweet_length);
     for split in splits {
-        println!("{}", split.replace('\n', "\\n").replace("'", "\\'").replace("\"", "\\\""));
+        println!(
+            "{}",
+            split
+                .replace('\n', "\\n")
+                .replace("'", "\\'")
+                .replace("\"", "\\\"")
+        );
     }
 
     Ok(())

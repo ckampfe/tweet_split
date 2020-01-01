@@ -43,9 +43,9 @@ impl Lengthable for Span<'_> {
 }
 
 pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
-    let input = input.trim_start();
+    let input = input.trim();
 
-    let spaces = SPACE_MATCHER
+    let mut spaces = SPACE_MATCHER
         .find_iter(input)
         .map(|space_match| Span::Space {
             regex_match: space_match,
@@ -53,9 +53,7 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
         })
         .collect::<Vec<Span>>();
 
-    let has_spaces = spaces.len() > 0;
-
-    if has_spaces {
+    if !spaces.is_empty() {
         let words = WORD_MATCHER
             .find_iter(input)
             .map(|word_match| Span::Word {
@@ -63,6 +61,18 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
                 length: word_match.end() - word_match.start(),
             })
             .collect::<Vec<Span>>();
+
+        // if there are less spaces than words due to trimming,
+        // add enough spaces so that `spaces.len() == words.len()`
+        // this is safe because `spaces` in this branch
+        // must have len > 0
+        loop {
+            if spaces.len() < words.len() {
+                spaces.push(spaces[spaces.len() - 1].clone())
+            } else {
+                break;
+            }
+        }
 
         let words_spaces = words.into_iter().zip(spaces);
 
@@ -73,8 +83,6 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
         let mut current_span_group: Vec<Span> = vec![];
 
         for (word, space) in words_spaces {
-            // println!("{}", current_tweet_length);
-            // println!("{:?}", word);
             let word_length = word.len();
 
             if word_length + current_tweet_length <= max_tweet_length {
@@ -126,7 +134,6 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Vec<String> {
             .chars()
             .collect::<Vec<char>>()
             .chunks(max_tweet_length)
-            .into_iter()
             .map(|chunk| chunk.iter().collect::<String>())
             .collect::<Vec<_>>()
     }
@@ -168,7 +175,6 @@ mod tests {
         let splits = split_text(&input, 10);
 
         for split in splits {
-            println!("{:?}", split);
             assert_eq!(split.len(), 10);
         }
     }
