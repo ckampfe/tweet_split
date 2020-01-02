@@ -95,7 +95,7 @@ pub fn split_text(input: &str, max_tweet_length: usize) -> Result<Vec<String>, T
                 current_tweet_length += word_length;
 
                 let space_length = space.len();
-                if space_length + current_tweet_length < max_tweet_length {
+                if space_length + current_tweet_length <= max_tweet_length {
                     current_span_group.push(space);
                     current_tweet_length += space_length;
                 }
@@ -160,6 +160,8 @@ lazy_static! {
 mod tests {
     use super::*;
 
+    const TRAITOROUS_EIGHT: &str = "The traitorous eight was a group of eight employees who left Shockley Semiconductor Laboratory in 1957 to found Fairchild Semiconductor. William Shockley had in 1956 recruited a group of young PhD graduates with the goal to develop and produce new semiconductor devices. While Shockley had received a Nobel Prize in Physics and was an experienced researcher and teacher, his management of the group was authoritarian and unpopular. This was accentuated by Shockley's research focus not proving fruitful. After the demand for Shockley to be replaced was rebuffed, the eight left to form their own company.";
+
     #[test]
     fn it_splits() {
         let input = "aaaaaaaaa bbbbbbbbb ccccccccc ddddddddd eeeeeeeee ";
@@ -177,6 +179,28 @@ mod tests {
 
         for split in splits {
             assert_eq!(split.len(), 9);
+        }
+    }
+
+    #[test]
+    fn it_properly_splits_at_smaller_char_sizes() {
+        let input = TRAITOROUS_EIGHT;
+
+        let splits = split_text(input, 25).unwrap();
+
+        assert_eq!(splits[0], "The traitorous eight was");
+    }
+
+    #[test]
+    fn it_trims_trailing_spaces() {
+        let input = TRAITOROUS_EIGHT;
+
+        for max_tweet_length in 14..=250 {
+            let splits = split_text(input, max_tweet_length).unwrap();
+
+            for split in splits {
+                assert_ne!(split.chars().collect::<Vec<char>>().last().unwrap(), &' ');
+            }
         }
     }
 }
